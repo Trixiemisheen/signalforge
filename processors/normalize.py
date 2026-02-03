@@ -3,7 +3,7 @@ Data Normalization Module
 Standardizes raw data into consistent format
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 import re
 import logging
@@ -144,20 +144,20 @@ def _normalize_date(date_value: Any) -> datetime:
         
         for fmt in formats:
             try:
-                return datetime.strptime(date_value, fmt)
+                return datetime.strptime(date_value, fmt).replace(tzinfo=timezone.utc)
             except ValueError:
                 continue
     
     # Try integer timestamp
     if isinstance(date_value, (int, float)):
         try:
-            return datetime.fromtimestamp(date_value)
+            return datetime.fromtimestamp(date_value, tz=timezone.utc)
         except:
             pass
     
     # Default to now if can't parse
     logger.warning(f"Could not parse date: {date_value}, using current time")
-    return datetime.now()
+    return datetime.now(timezone.utc)
 
 
 def normalize_signal(raw_data: Dict[str, Any], signal_type: str) -> Dict[str, Any]:
@@ -173,7 +173,7 @@ def normalize_signal(raw_data: Dict[str, Any], signal_type: str) -> Dict[str, An
     """
     try:
         import hashlib
-        unique_str = f"{signal_type}{raw_data.get('title', '')}{datetime.utcnow().isoformat()}"
+        unique_str = f"{signal_type}{raw_data.get('title', '')}{datetime.now(timezone.utc).isoformat()}"
         signal_id = hashlib.md5(unique_str.encode()).hexdigest()[:16]
         
         normalized = {
@@ -183,7 +183,7 @@ def normalize_signal(raw_data: Dict[str, Any], signal_type: str) -> Dict[str, An
             "description": _normalize_text(raw_data.get("description", "")),
             "data": str(raw_data.get("data", {})),
             "source": raw_data.get("source", "unknown"),
-            "detected_at": datetime.utcnow()
+            "detected_at": datetime.now(timezone.utc)
         }
         
         return normalized

@@ -3,7 +3,7 @@ RemoteOK Jobs Collector
 Collects remote job postings from RemoteOK
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any
 import requests
 import time
@@ -85,20 +85,20 @@ class RemoteOKCollector:
                 try:
                     # Try parsing as timestamp first
                     if isinstance(posted_date, (int, float)):
-                        posted_at = datetime.fromtimestamp(posted_date)
+                        posted_at = datetime.fromtimestamp(posted_date, tz=timezone.utc)
                     elif isinstance(posted_date, str):
                         # Try ISO format
                         try:
                             posted_at = datetime.fromisoformat(posted_date.replace('Z', '+00:00'))
                         except:
                             # Try as timestamp string
-                            posted_at = datetime.fromtimestamp(int(posted_date))
+                            posted_at = datetime.fromtimestamp(int(posted_date), tz=timezone.utc)
                     else:
-                        posted_at = datetime.now()
+                        posted_at = datetime.now(timezone.utc)
                 except:
-                    posted_at = datetime.now()
+                    posted_at = datetime.now(timezone.utc)
             else:
-                posted_at = datetime.now()
+                posted_at = datetime.now(timezone.utc)
             
             return {
                 "id": str(raw_job.get("id", "")),
@@ -132,7 +132,7 @@ class MockJobCollector:
                 "company": "TechCorp",
                 "location": "Remote",
                 "url": "https://example.com/job/001",
-                "posted_at": datetime.utcnow().isoformat(),
+                "posted_at": datetime.now(timezone.utc).isoformat(),
                 "stack": "python,django,postgresql,docker",
                 "description": "We're looking for a senior backend engineer with Python expertise",
                 "source": self.name
@@ -143,7 +143,7 @@ class MockJobCollector:
                 "company": "DataCo",
                 "location": "Kenya",
                 "url": "https://example.com/job/002",
-                "posted_at": datetime.utcnow().isoformat(),
+                "posted_at": datetime.now(timezone.utc).isoformat(),
                 "stack": "python,tensorflow,pytorch,aws",
                 "description": "Join our AI team building cutting-edge ML models",
                 "source": self.name
@@ -154,7 +154,7 @@ class MockJobCollector:
                 "company": "StartupXYZ",
                 "location": "Nairobi",
                 "url": "https://example.com/job/003",
-                "posted_at": datetime.utcnow().isoformat(),
+                "posted_at": datetime.now(timezone.utc).isoformat(),
                 "stack": "javascript,react,nodejs,mongodb",
                 "description": "Build modern web applications with our team",
                 "source": self.name

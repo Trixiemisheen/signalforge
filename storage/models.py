@@ -2,10 +2,10 @@
 Database Models for SignalForge
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy import Column, String, Integer, DateTime, Text, JSON
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -22,8 +22,8 @@ class Job(Base):
     url = Column(String, nullable=False)
     posted_at = Column(DateTime, nullable=False)
     score = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Metadata
     raw_data = Column(Text, nullable=True)  # Original data for reference
@@ -60,7 +60,7 @@ class Signal(Base):
     description = Column(Text, nullable=True)
     data = Column(Text, nullable=True)  # JSON data
     score = Column(Integer, default=0)
-    detected_at = Column(DateTime, default=datetime.utcnow)
+    detected_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     source = Column(String, nullable=True)
     alerted = Column(Integer, default=0)
     

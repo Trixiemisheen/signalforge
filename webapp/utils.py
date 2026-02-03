@@ -15,7 +15,7 @@ from alerts.telegram import send_job_alert_sync, TelegramAlerter
 import threading
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -255,7 +255,7 @@ def run_self_test(limit: int = 50, log_path: Optional[str] = "webapp/self_test.l
     if log_path:
         try:
             with open(log_path, 'a', encoding='utf-8') as fh:
-                fh.write(f"--- Self-test: {datetime.utcnow().isoformat()} ---\n")
+                fh.write(f"--- Self-test: {datetime.now(timezone.utc).isoformat()} ---\n")
                 for line in report_lines:
                     fh.write(line + "\n")
                 fh.write("\n")

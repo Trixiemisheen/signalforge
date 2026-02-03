@@ -3,7 +3,7 @@ Scoring Engine Module
 Scores jobs and signals based on rules
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 import yaml
 import logging
@@ -103,7 +103,11 @@ class Scorer:
         if not isinstance(posted_at, datetime):
             return 0
         
-        age_days = (datetime.utcnow() - posted_at).days
+        # Use timezone-aware comparison; if posted_at is naive assume UTC
+        now = datetime.now(timezone.utc)
+        if posted_at.tzinfo is None:
+            posted_at = posted_at.replace(tzinfo=timezone.utc)
+        age_days = (now - posted_at).days
         
         if age_days < 0:
             age_days = 0

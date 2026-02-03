@@ -6,7 +6,7 @@ FastAPI service for accessing jobs and signals
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 from storage.db import get_db
@@ -21,11 +21,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan handler: startup and shutdown tasks"""
+    logger.info("Starting SignalForge API...")
+    db = get_db()
+    db.create_tables()
+    logger.info("Database tables initialized")
+    yield
+
 # Initialize FastAPI app
 app = FastAPI(
     title="SignalForge API",
     description="Real-time signal engine for jobs, trends, and market patterns",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Mount static UI and templates
@@ -47,13 +59,7 @@ app.add_middleware(
 )
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    logger.info("Starting SignalForge API...")
-    db = get_db()
-    db.create_tables()
-    logger.info("Database tables initialized")
+# Startup tasks moved to lifespan handler
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -74,7 +80,7 @@ async def api_root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @app.get("/api/jobs", response_model=List[dict])
@@ -115,6 +121,9 @@ async def list_jobs(
         if posted_after:
             try:
                 date_filter = datetime.fromisoformat(posted_after)
+                # If parsed date is timezone-aware, normalize for DB comparison (DB uses naive timestamps)
+                if date_filter.tzinfo is not None:
+                    date_filter = date_filter.replace(tzinfo=None)
                 query = query.filter(Job.posted_at >= date_filter)
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid date format")
@@ -158,8 +167,10 @@ async def get_jobs_stats():
         alerted_jobs = session.query(Job).filter(Job.alerted == 1).count()
         
         # Recent jobs (last 7 days)
-        seven_days_ago = datetime.utcnow() - timedelta(days=7)
-        recent_jobs = session.query(Job).filter(Job.posted_at >= seven_days_ago).count()
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        # DB stores naive timestamps; normalize to naive for comparison
+        seven_days_ago_naive = seven_days_ago.replace(tzinfo=None)
+        recent_jobs = session.query(Job).filter(Job.posted_at >= seven_days_ago_naive).count()
         
         # Top companies
         from sqlalchemy import func
