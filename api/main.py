@@ -12,6 +12,7 @@ import logging
 from storage.db import get_db
 from storage.models import Job, Signal
 from config import config
+from webapp.utils import run_collectors_once
 
 # Configure logging
 logging.basicConfig(
@@ -76,7 +77,7 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 
-@app.get("/jobs", response_model=List[dict])
+@app.get("/api/jobs", response_model=List[dict])
 async def list_jobs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -127,7 +128,7 @@ async def list_jobs(
         return [job.to_dict() for job in jobs]
 
 
-@app.get("/jobs/{job_id}")
+@app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str):
     """
     Get a specific job by ID
@@ -146,7 +147,7 @@ async def get_job(job_id: str):
         return job.to_dict()
 
 
-@app.get("/jobs/stats/summary")
+@app.get("/api/jobs/stats/summary")
 async def get_jobs_stats():
     """Get job statistics"""
     db = get_db()
@@ -183,7 +184,17 @@ async def get_jobs_stats():
         }
 
 
-@app.get("/signals", response_model=List[dict])
+@app.post("/api/jobs/collect")
+async def trigger_collectors():
+    """Trigger collectors to run once in background"""
+    try:
+        started = run_collectors_once()
+        return {"started": bool(started)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/signals", response_model=List[dict])
 async def list_signals(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
@@ -216,7 +227,7 @@ async def list_signals(
         return [signal.to_dict() for signal in signals]
 
 
-@app.get("/signals/{signal_id}")
+@app.get("/api/signals/{signal_id}")
 async def get_signal(signal_id: str):
     """Get a specific signal by ID"""
     db = get_db()
@@ -230,7 +241,7 @@ async def get_signal(signal_id: str):
         return signal.to_dict()
 
 
-@app.delete("/jobs/{job_id}")
+@app.delete("/api/jobs/{job_id}")
 async def delete_job(job_id: str):
     """Delete a job by ID"""
     db = get_db()

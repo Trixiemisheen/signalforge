@@ -192,11 +192,12 @@ python main.py test-alert
 | ------ | --------------------- | ---------------- |
 | GET    | `/api`                | API info         |
 | GET    | `/health`             | Health check     |
-| GET    | `/jobs`               | List all jobs    |
-| GET    | `/jobs/{id}`          | Get specific job |
-| GET    | `/jobs/stats/summary` | Job statistics   |
-| GET    | `/signals`            | List signals     |
-| DELETE | `/jobs/{id}`          | Delete job       |
+| GET    | `/api/jobs`           | List all jobs    |
+| GET    | `/api/jobs/{id}`      | Get specific job |
+| GET    | `/api/jobs/stats/summary` | Job statistics   |
+| GET    | `/api/signals`        | List signals     |
+| POST   | `/api/jobs/collect`   | Trigger job collectors |
+| DELETE | `/api/jobs/{id}`      | Delete job       |
 
 **Example:**
 
