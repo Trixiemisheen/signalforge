@@ -35,14 +35,19 @@
                 <i class="fas fa-home mr-2"></i>Dashboard
               </button>
               <button
-                @click="currentView = 'jobs'"
+                @click="currentView = 'jobs'; fetchJobs()"
                 :class="currentView === 'jobs' ? 'bg-orange-600' : 'bg-gray-700'"
-                class="px-4 py-2 rounded-lg hover:bg-orange-500 transition"
+                class="px-4 py-2 rounded-lg hover:bg-orange-500 transition flex items-center"
               >
                 <i class="fas fa-briefcase mr-2"></i>Jobs
+                <span
+                  x-text="jobs.length"
+                  class="ml-3 inline-block bg-gray-900 text-xs px-2 py-0.5 rounded-full"
+                  aria-hidden="true"
+                ></span>
               </button>
               <button
-                @click="currentView = 'trends'"
+                @click="currentView = 'trends'; fetchTrends()"
                 :class="currentView === 'trends' ? 'bg-orange-600' : 'bg-gray-700'"
                 class="px-4 py-2 rounded-lg hover:bg-orange-500 transition"
               >
@@ -247,11 +252,16 @@
           </template>
         </div>
 
-        <div x-show="jobs.length === 0" class="text-center py-12 text-gray-400">
+        <div x-show="!loading && jobs.length === 0" class="text-center py-12 text-gray-400">
           <i class="fas fa-inbox text-6xl mb-4"></i>
-          <p class="text-xl">
+          <p class="text-xl mb-4">
             No jobs found. Try adjusting your filters or collect new jobs.
           </p>
+          <div class="space-x-2">
+            <button @click="triggerCollection()" class="px-4 py-2 bg-green-600 rounded-lg hover:bg-green-500">Collect now</button>
+            <a :href="(apiBase || window.location.origin) + '/api/jobs?limit=100'" target="_blank" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600">Open API</a>
+          </div>
+          <p class="text-sm mt-3 text-gray-500">API base: <span x-text="apiBase || window.location.origin"></span></p>
         </div>
       </div>
 
@@ -418,7 +428,10 @@
         </div>
       </div>
     </div>
-
+    <!-- Debug: Show resolved API base for local testing -->
+    <div x-data="{ apiBase: (function(){ try { const p = new URLSearchParams(window.location.search); if (p.has('api_base')) return p.get('api_base'); if (window.location.port === '5500') return 'http://127.0.0.1:8000'; return ''; } catch(e){ return ''; } })() }" class="fixed bottom-4 left-4 z-50 text-xs">
+      <div class="bg-gray-800 p-2 rounded text-gray-300">API: <span x-text="apiBase || window.location.origin"></span></div>
+    </div>
     <script>
       function dashboard() {
         return {
@@ -476,9 +489,28 @@
               if (this.filters.minScore > 0) {
                 url += `&min_score=${this.filters.minScore}`;
               }
+
               const response = await this.apiFetch(url);
+              if (!response.ok) throw new Error(`API returned ${response.status}`);
+
               const data = await response.json();
-              this.jobs = data.jobs || [];
+
+              // Support multiple API shapes: either a list or an object with `jobs` key
+              let jobsList = [];
+              if (Array.isArray(data)) {
+                jobsList = data;
+              } else if (data && Array.isArray(data.jobs)) {
+                jobsList = data.jobs;
+              } else if (data && Array.isArray(data.data)) {
+                // Some APIs wrap payload in `data`
+                jobsList = data.data;
+              } else {
+                jobsList = [];
+              }
+
+              console.info(`Fetched ${jobsList.length} jobs from ${url}`);
+
+              this.jobs = jobsList;
               this.topJobs = this.jobs.slice(0, 5);
             } catch (error) {
               console.error("Error fetching jobs:", error);
@@ -510,11 +542,21 @@
               // Count locations
               locations[job.location] = (locations[job.location] || 0) + 1;
 
-              // Count tech stack
+              // Count tech stack (support both comma-separated string and array)
               if (job.stack) {
-                const stackItems = job.stack.split(",");
+                let stackItems = [];
+                if (Array.isArray(job.stack)) {
+                  stackItems = job.stack;
+                } else {
+                  try {
+                    stackItems = String(job.stack).split(",");
+                  } catch (e) {
+                    stackItems = [];
+                  }
+                }
+
                 stackItems.forEach((tech) => {
-                  const t = tech.trim().toLowerCase();
+                  const t = String(tech).trim().toLowerCase();
                   if (t) techs[t] = (techs[t] || 0) + 1;
                 });
               }
