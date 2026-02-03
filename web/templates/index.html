@@ -438,6 +438,22 @@
             type: "success",
           },
 
+          // API base resolver: override with ?api_base=... for local dev (e.g., Live Server)
+          apiBase: (() => {
+            try {
+              const params = new URLSearchParams(window.location.search);
+              if (params.has("api_base")) return params.get("api_base");
+            } catch (e) {}
+            // If served from Live Server (port 5500), default to API at 8000
+            if (window.location.port === "5500") return "http://127.0.0.1:8000";
+            return "";
+          })(),
+
+          apiFetch(path, opts) {
+            const base = this.apiBase || "";
+            return fetch(`${base}${path}`, opts);
+          },
+
           async init() {
             await this.fetchStats();
             await this.fetchJobs();
@@ -446,7 +462,7 @@
 
           async fetchStats() {
             try {
-              const response = await fetch("/api/jobs/stats/summary");
+              const response = await this.apiFetch("/api/jobs/stats/summary");
               this.stats = await response.json();
             } catch (error) {
               console.error("Error fetching stats:", error);
@@ -460,7 +476,7 @@
               if (this.filters.minScore > 0) {
                 url += `&min_score=${this.filters.minScore}`;
               }
-              const response = await fetch(url);
+              const response = await this.apiFetch(url);
               const data = await response.json();
               this.jobs = data.jobs || [];
               this.topJobs = this.jobs.slice(0, 5);
@@ -533,7 +549,7 @@
             this.showToast("Starting job collection...", "success");
 
             try {
-              const resp = await fetch("/api/jobs/collect", { method: "POST" });
+              const resp = await this.apiFetch("/api/jobs/collect", { method: "POST" });
               if (!resp.ok) {
                 this.showToast("Failed to start collection", "error");
               } else {
